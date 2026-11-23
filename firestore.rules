@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+ function signed(){return request.auth != null;}
+ function admin(){return signed() && request.auth.uid == '4RjVStg8mohpsjtC0jSH1GprMaz1';}
+ function own(){return signed() && resource.data.uid == request.auth.uid;}
+ function newOwn(){return signed() && request.resource.data.uid == request.auth.uid;}
+ match /{document=**} { allow read, write: if false; }
+ match /{c}/{id} {
+ allow read: if c in ['kycApplications','accountApplications','loanApplications','beneficiaries','customerProfiles'] && (own() || admin());
+ allow create: if c in ['kycApplications','accountApplications','loanApplications'] && newOwn() && request.resource.data.status == 'PENDING';
+ allow update: if c in ['kycApplications','accountApplications','loanApplications'] && admin() && resource.data.status == 'PENDING' && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']) && request.resource.data.status in ['APPROVED','REJECTED'];
+ allow create: if c in ['beneficiaries','customerProfiles'] && newOwn();
+ allow update: if c in ['beneficiaries','customerProfiles'] && own() && newOwn();
+ allow delete: if c == 'beneficiaries' && own();
+ }
+ match /loanProducts/{id} { allow read: if signed(); allow write: if admin(); }
+ }
+}
